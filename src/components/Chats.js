@@ -15,23 +15,50 @@ const Chats = () => {
         history.push('/');
     }
 
+    // handle image
+    const getFile = async (url) => {
+        const res = await fetch(url);
+        console.log(res);
+        const data = await res.blob();
+        return new File([data], "userPhoto.jpeg", {type: 'image/jpeg'});
+    }
+
     useEffect(() => {
         if(!user) {
             history.push('/');
             return
         }
-        axios.get("https://api.chatengine.io/users/me", {
+
+        axios.get("https://api.chatengine.io/users/me/", {
             headers: {
-                "project-ID": process.env.PROJECT_ID,
-                "User-Name": user.email,
-                "User-Secret": user.uid
+                "project-ID": process.env.REACT_APP_PROJECTID,
+                "user-name": user.email,
+                "user-secret": user.uid
             }
         }).then(() => {
+            console.log('got existing user')
             setLoading(false);
         }).catch(() => {
+            console.log('create new user')
             // handle user creation here
+            let formdata = new FormData();
+            formdata.append('email', user.email);
+            formdata.append('username', user.email);
+            formdata.append('secret', user.uid);
+            getFile(user.photoURL).then(avatar => {
+                console.log('got the avatar');
+                console.log(formdata.get('email'))
+                formdata.append('avatar', avatar, avatar.name);
+                axios.post("https://api.chatengine.io/users/", 
+                    formdata, 
+                    { headers: { "private-key": process.env.REACT_APP_PRIVATEKEY } }
+                ).then(() => setLoading(false))
+                .catch((err) => console.log('create faikled',err))
+            });
         })
     }, [user, history]);
+    
+    if(!user || loading) return "Loading..."
 
     return (
         <div>
@@ -46,7 +73,7 @@ const Chats = () => {
                 </div>
                 <ChatEngine 
                     height = "calc(100vh - 66px)"
-                    projectId = { process.env.PROJECT_ID }
+                    projectID = { process.env.REACT_APP_PROJECTID }
                     userName = { user.email }
                     userSecret = { user.uid }
                 />
